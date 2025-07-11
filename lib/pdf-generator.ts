@@ -188,30 +188,31 @@ export const generateCalendarPDF = async (
 
       // Check for special events
       const dateStr = format(date, 'MM-dd');
-      let eventName = '';
+      const eventsForDay: string[] = [];
 
-      // Check holidays
-      const holiday = holidays.find((h) => h.date === dateStr);
-      if (holiday) {
-        eventName = holiday.name + '!';
-      }
+      // Check holidays first (they appear first in the list)
+      const holidaysForDay = holidays.filter((h) => h.date === dateStr);
+      holidaysForDay.forEach((holiday) => {
+        eventsForDay.push(holiday.name + '!');
+      });
 
-      // Check custom events (override holiday if both exist)
-      const customEvent = customEvents.find((e) => e.date === dateStr);
-      if (customEvent) {
-        eventName = customEvent.name;
-      }
+      // Check custom events (they appear after holidays)
+      const customEventsForDay = customEvents.filter((e) => e.date === dateStr);
+      customEventsForDay.forEach((customEvent) => {
+        eventsForDay.push(customEvent.name);
+      });
 
-      if (eventName) {
+      if (eventsForDay.length > 0) {
         pdf.setFontSize(14);
-        // Position text lower down and to the left, directly on the first line
-        const eventY = startY + 0.8; // Moved lower to sit on the first writing line
         const textX = x + 0.1; // Left-aligned within the column
 
-        // Draw text with normal font, left-aligned
+        // Draw each event on a separate line
         configureFonts(pdf);
-        pdf.text(eventName, textX, eventY, {
-          align: 'left',
+        eventsForDay.forEach((eventName, eventIndex) => {
+          const eventY = startY + 0.8 + eventIndex * 0.3; // Stack events vertically
+          pdf.text(eventName, textX, eventY, {
+            align: 'left',
+          });
         });
       }
 
@@ -225,7 +226,7 @@ export const generateCalendarPDF = async (
       // Draw dark lines for writing
       pdf.setDrawColor(100, 100, 100); // Dark gray for writing lines
       pdf.setLineWidth(0.01);
-      for (let line = 1; line <= 20; line++) {
+      for (let line = 1; line <= 24; line++) {
         const lineY = startY + 0.5 + line * 0.3;
         if (lineY < startY + columnHeight - 0.2) {
           pdf.line(x + 0.1, lineY, x + columnWidth - 0.2, lineY);
