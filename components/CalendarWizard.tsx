@@ -27,6 +27,9 @@ import {
   RegionOption,
   LocationSelection,
   getHolidaysForLocation,
+  getHolidaysForDateRange,
+  getUniqueHolidayNames,
+  getHolidaysByName,
   createDynamicHolidayCategory,
   getAvailableCountries,
   getAvailableStates,
@@ -50,6 +53,8 @@ import {
 interface CustomEvent {
   name: string;
   date: string;
+  isRecurring: boolean;
+  year?: number;
 }
 
 interface CalendarWizardProps {
@@ -206,14 +211,41 @@ export default function CalendarWizard({ onBack }: CalendarWizardProps) {
     }
   }, [startDate, endDate]);
 
+  // Update holidays when date range changes
+  useEffect(() => {
+    if (useCustomRange) {
+      updateCurrentHolidays();
+    }
+  }, [startDate, endDate, useCustomRange]);
+
+  // Update holidays when year changes (for non-custom range)
+  useEffect(() => {
+    if (!useCustomRange) {
+      updateCurrentHolidays();
+    }
+  }, [year]);
+
   const updateCurrentHolidays = () => {
-    const holidays = getHolidaysForLocation(
-      selectedCountry,
-      selectedState || undefined,
-      selectedRegion || undefined,
-      year
-    );
-    setCurrentHolidays(holidays);
+    if (useCustomRange && startDate && endDate) {
+      // For custom date range, get holidays for all years in the range
+      const holidays = getHolidaysForDateRange(
+        selectedCountry,
+        new Date(startDate),
+        new Date(endDate),
+        selectedState || undefined,
+        selectedRegion || undefined
+      );
+      setCurrentHolidays(holidays);
+    } else {
+      // For single year, get holidays for that year only
+      const holidays = getHolidaysForLocation(
+        selectedCountry,
+        selectedState || undefined,
+        selectedRegion || undefined,
+        year
+      );
+      setCurrentHolidays(holidays);
+    }
   };
 
   const toggleHoliday = (holidayName: string) => {
@@ -228,17 +260,24 @@ export default function CalendarWizard({ onBack }: CalendarWizardProps) {
     setSelectedHolidays((prev) => prev.filter((name) => name !== holidayName));
   };
   const getCurrentCategoryHolidays = (): Holiday[] => {
-    return currentHolidays;
+    // Group holidays by name and show unique names with years
+    const uniqueNames = getUniqueHolidayNames(currentHolidays);
+    return uniqueNames.map(name => {
+      const holidaysForName = getHolidaysByName(currentHolidays, name);
+      // Use the first occurrence as the representative
+      return holidaysForName[0];
+    });
   };
 
   const getSelectedHolidayObjects = (): Holiday[] => {
     return selectedHolidays
-      .map((name) => currentHolidays.find((h) => h.name === name))
+      .map((name) => getHolidaysByName(currentHolidays, name))
+      .flat()
       .filter(Boolean) as Holiday[];
   };
 
   const selectAllHolidays = () => {
-    const allHolidayNames = currentHolidays.map((holiday) => holiday.name);
+    const allHolidayNames = getUniqueHolidayNames(currentHolidays);
     setSelectedHolidays(allHolidayNames);
   };
 
@@ -247,13 +286,13 @@ export default function CalendarWizard({ onBack }: CalendarWizardProps) {
   };
 
   const addCustomEvent = () => {
-    setCustomEvents((prev) => [...prev, { name: '', date: '' }]);
+    setCustomEvents((prev) => [...prev, { name: '', date: '', isRecurring: true }]);
   };
 
   const updateCustomEvent = (
     index: number,
     field: keyof CustomEvent,
-    value: string
+    value: string | boolean | number
   ) => {
     setCustomEvents((prev) =>
       prev.map((event, i) =>
@@ -272,7 +311,7 @@ export default function CalendarWizard({ onBack }: CalendarWizardProps) {
       const options: any = {
         calendarHeader: calendarHeader || 'Family',
         holidays: getSelectedHolidayObjects(),
-        customEvents: customEvents.filter((e) => e.name && e.date),
+        customEvents: customEvents.filter((e) => e.name && e.date && (e.isRecurring || e.year)),
       };
 
       if (useCustomRange && startDate && endDate) {
@@ -486,6 +525,11 @@ export default function CalendarWizard({ onBack }: CalendarWizardProps) {
       <div className="grid md:grid-cols-2 gap-4">
         {getCurrentCategoryHolidays().map((holiday, index) => {
           const isSelected = selectedHolidays.includes(holiday.name);
+          const holidaysForName = getHolidaysByName(currentHolidays, holiday.name);
+          const yearsText = holidaysForName.length > 1 
+            ? `(${holidaysForName.map(h => h.year).join(', ')})`
+            : `(${holiday.year})`;
+          
           return (
             <div
               key={index}
@@ -501,7 +545,9 @@ export default function CalendarWizard({ onBack }: CalendarWizardProps) {
                   <div className="font-medium text-gray-800">
                     {holiday.name}
                   </div>
-                  <div className="text-sm text-gray-500">{holiday.date}</div>
+                  <div className="text-sm text-gray-500">
+                    {holiday.date} {yearsText}
+                  </div>
                 </div>
               </div>
             </div>
@@ -544,8 +590,8 @@ export default function CalendarWizard({ onBack }: CalendarWizardProps) {
             className="p-4 border border-gray-300 rounded-lg bg-white"
           >
             {' '}
-            <div className="grid grid-cols-9 gap-3 items-end">
-              <div className="col-span-6">
+            <div className="grid grid-cols-12 gap-3 items-end">
+              <div className="col-span-5">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Event Name
                 </label>
@@ -573,6 +619,37 @@ export default function CalendarWizard({ onBack }: CalendarWizardProps) {
                   className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
               </div>
+              <div className="col-span-2">
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={event.isRecurring}
+                    onChange={(e) =>
+                      updateCustomEvent(index, 'isRecurring', e.target.checked)
+                    }
+                    className="h-4 w-4 text-purple-600 focus:ring-purple-500"
+                  />
+                  <span className="text-sm text-gray-700">Recurring</span>
+                </label>
+              </div>
+              {!event.isRecurring && (
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Year
+                  </label>
+                  <input
+                    type="number"
+                    value={event.year || ''}
+                    onChange={(e) =>
+                      updateCustomEvent(index, 'year', parseInt(e.target.value))
+                    }
+                    placeholder="2025"
+                    min="2020"
+                    max="2030"
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+              )}
               <div className="col-span-1">
                 <button
                   onClick={() => removeCustomEvent(index)}
@@ -649,13 +726,13 @@ export default function CalendarWizard({ onBack }: CalendarWizardProps) {
             <h3 className="font-semibold text-gray-800">Special Days</h3>
             <div className="flex flex-wrap gap-2 mt-2">
               {customEvents
-                .filter((e) => e.name && e.date)
+                .filter((e) => e.name && e.date && (e.isRecurring || e.year))
                 .map((event, index) => (
                   <span
                     key={index}
                     className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm"
                   >
-                    {event.name}
+                    {event.name} {!event.isRecurring && event.year && `(${event.year})`}
                   </span>
                 ))}
             </div>

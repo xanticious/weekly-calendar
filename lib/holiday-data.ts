@@ -3,6 +3,7 @@ import Holidays from 'date-holidays';
 export interface Holiday {
   name: string;
   date: string;
+  year: number;
   category: string;
   type?: string;
 }
@@ -112,6 +113,7 @@ export const getHolidaysForLocation = (
     return holidays.map((holiday: any) => ({
       name: holiday.name,
       date: holiday.date.substring(5, 10), // Extract MM-DD from YYYY-MM-DD
+      year: year,
       category: categoryId,
       type: holiday.type,
     }));
@@ -171,7 +173,7 @@ export const createDynamicHolidayCategory = (
 };
 
 // Fallback to popular US holidays as default
-const getDefaultHolidays = (): HolidayCategory => {
+const getDefaultHolidays = (year: number = new Date().getFullYear()): HolidayCategory => {
   return {
     id: 'us-popular',
     name: 'Popular U.S. Holidays',
@@ -179,47 +181,56 @@ const getDefaultHolidays = (): HolidayCategory => {
       {
         name: "New Year's Day",
         date: '01-01',
+        year: year,
         category: 'us-popular',
       },
       {
         name: "Valentine's Day",
         date: '02-14',
+        year: year,
         category: 'us-popular',
       },
       {
         name: "St. Patrick's Day",
         date: '03-17',
+        year: year,
         category: 'us-popular',
       },
       {
         name: 'Easter Sunday',
         date: '04-21',
+        year: year,
         category: 'us-popular',
       },
       {
         name: "Mother's Day",
         date: '05-12',
+        year: year,
         category: 'us-popular',
       },
       {
         name: "Father's Day",
         date: '06-16',
+        year: year,
         category: 'us-popular',
       },
       {
         name: 'Independence Day',
         date: '07-04',
+        year: year,
         category: 'us-popular',
       },
-      { name: 'Halloween', date: '10-31', category: 'us-popular' },
+      { name: 'Halloween', date: '10-31', year: year, category: 'us-popular' },
       {
         name: 'Thanksgiving',
         date: '11-28',
+        year: year,
         category: 'us-popular',
       },
       {
         name: 'Christmas Day',
         date: '12-25',
+        year: year,
         category: 'us-popular',
       },
     ],
@@ -395,4 +406,36 @@ export const loadCustomDateRange = (): {
     };
   }
   return { startDate: '', endDate: '' };
+};
+
+// Get holidays for a date range spanning multiple years
+export const getHolidaysForDateRange = (
+  countryCode: string,
+  startDate: Date,
+  endDate: Date,
+  stateCode?: string,
+  regionCode?: string
+): Holiday[] => {
+  const startYear = startDate.getFullYear();
+  const endYear = endDate.getFullYear();
+  const allHolidays: Holiday[] = [];
+
+  // Get holidays for each year in the range
+  for (let year = startYear; year <= endYear; year++) {
+    const yearHolidays = getHolidaysForLocation(countryCode, stateCode, regionCode, year);
+    allHolidays.push(...yearHolidays);
+  }
+
+  return allHolidays;
+};
+
+// Get unique holiday names (without year) for selection
+export const getUniqueHolidayNames = (holidays: Holiday[]): string[] => {
+  const uniqueNames = new Set(holidays.map(h => h.name));
+  return Array.from(uniqueNames);
+};
+
+// Get holidays by name across multiple years
+export const getHolidaysByName = (holidays: Holiday[], name: string): Holiday[] => {
+  return holidays.filter(h => h.name === name);
 };

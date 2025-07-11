@@ -12,12 +12,15 @@ import { CHEWY_FONT_BASE64, FONT_CONFIG, hasFontsLoaded } from './font-data';
 interface Holiday {
   name: string;
   date: string;
+  year: number;
   category: string;
 }
 
 interface CustomEvent {
   name: string;
   date: string;
+  isRecurring: boolean;
+  year?: number;
 }
 
 interface CalendarOptions {
@@ -191,16 +194,27 @@ export const generateCalendarPDF = async (
 
       // Check for special events
       const dateStr = format(date, 'MM-dd');
+      const currentYear = date.getFullYear();
       const eventsForDay: string[] = [];
 
       // Check holidays first (they appear first in the list)
-      const holidaysForDay = holidays.filter((h) => h.date === dateStr);
+      const holidaysForDay = holidays.filter((h) => 
+        h.date === dateStr && h.year === currentYear
+      );
       holidaysForDay.forEach((holiday) => {
         eventsForDay.push(holiday.name + '!');
       });
 
       // Check custom events (they appear after holidays)
-      const customEventsForDay = customEvents.filter((e) => e.date === dateStr);
+      const customEventsForDay = customEvents.filter((e) => {
+        if (e.isRecurring) {
+          // For recurring events, only match by date
+          return e.date === dateStr;
+        } else {
+          // For non-recurring events, match by date and year
+          return e.date === dateStr && e.year === currentYear;
+        }
+      });
       customEventsForDay.forEach((customEvent) => {
         eventsForDay.push(customEvent.name);
       });
@@ -303,13 +317,14 @@ export const sampleCalendarData: CalendarOptions = {
     {
       name: "New Year's Day",
       date: '01-01',
+      year: 2025,
       category: 'us-federal',
     },
-    { name: '4th of July', date: '07-04', category: 'us-federal' },
-    { name: 'Christmas', date: '12-25', category: 'us-federal' },
+    { name: '4th of July', date: '07-04', year: 2025, category: 'us-federal' },
+    { name: 'Christmas', date: '12-25', year: 2025, category: 'us-federal' },
   ],
   customEvents: [
-    { name: "Elvis' Birthday", date: '01-08' },
-    { name: 'Anniversary', date: '09-20' },
+    { name: "Elvis' Birthday", date: '01-08', isRecurring: true },
+    { name: 'Anniversary', date: '09-20', isRecurring: true },
   ],
 };
