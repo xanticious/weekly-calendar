@@ -150,12 +150,15 @@ export const generateCalendarPDF = async (
     // Header with abbreviated month names
     const weekStartFormatted = format(weekStart, 'MMM. d');
     const weekEndFormatted = format(weekEnd, 'MMM. d');
+    const headerYear = year || weekStart.getFullYear();
+    // Calculate week number from the start of the year
+    const yearStart = startOfYear(new Date(headerYear, 0, 1));
+    const yearStartWeek = startOfWeek(yearStart, { weekStartsOn: 0 });
     const weekNumber =
       Math.floor(
-        (weekStart.getTime() - calendarStartDate.getTime()) /
+        (weekStart.getTime() - yearStartWeek.getTime()) /
           (7 * 24 * 60 * 60 * 1000)
       ) + 1;
-    const headerYear = year || weekStart.getFullYear();
     // Use Chewy font for the calendar subtitle
     configureFonts(pdf);
     pdf.setFontSize(16);
