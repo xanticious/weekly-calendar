@@ -17,7 +17,7 @@ import {
   addWeeks,
   startOfWeek,
 } from 'date-fns';
-import EmojiPicker from './EmojiPicker';
+
 import {
   HOLIDAY_CATEGORIES,
   Holiday,
@@ -37,12 +37,19 @@ import {
   loadCustomEvents,
   saveLocationSelection,
   loadLocationSelection,
+  saveCalendarHeader,
+  loadCalendarHeader,
+  saveCalendarYear,
+  loadCalendarYear,
+  saveUseCustomRange,
+  loadUseCustomRange,
+  saveCustomDateRange,
+  loadCustomDateRange,
 } from '@/lib/holiday-data';
 
 interface CustomEvent {
   name: string;
   date: string;
-  emoji: string;
 }
 
 interface CalendarWizardProps {
@@ -71,6 +78,10 @@ export default function CalendarWizard({ onBack }: CalendarWizardProps) {
     const savedHolidays = loadSelectedHolidays();
     const savedEvents = loadCustomEvents();
     const savedLocation = loadLocationSelection();
+    const savedHeader = loadCalendarHeader();
+    const savedYear = loadCalendarYear();
+    const savedUseCustomRange = loadUseCustomRange();
+    const savedDateRange = loadCustomDateRange();
 
     // Load available countries
     setAvailableCountries(getAvailableCountries());
@@ -79,6 +90,13 @@ export default function CalendarWizard({ onBack }: CalendarWizardProps) {
     setSelectedCountry(savedLocation.country || 'US');
     setSelectedState(savedLocation.state || '');
     setSelectedRegion(savedLocation.region || '');
+
+    // Set calendar settings
+    setCalendarHeader(savedHeader);
+    setYear(savedYear);
+    setUseCustomRange(savedUseCustomRange);
+    setStartDate(savedDateRange.startDate);
+    setEndDate(savedDateRange.endDate);
 
     if (savedHolidays.length > 0) {
       setSelectedHolidays(savedHolidays);
@@ -169,6 +187,25 @@ export default function CalendarWizard({ onBack }: CalendarWizardProps) {
     saveCustomEvents(customEvents);
   }, [customEvents]);
 
+  // Save calendar settings to localStorage when they change
+  useEffect(() => {
+    saveCalendarHeader(calendarHeader);
+  }, [calendarHeader]);
+
+  useEffect(() => {
+    saveCalendarYear(year);
+  }, [year]);
+
+  useEffect(() => {
+    saveUseCustomRange(useCustomRange);
+  }, [useCustomRange]);
+
+  useEffect(() => {
+    if (startDate && endDate) {
+      saveCustomDateRange(startDate, endDate);
+    }
+  }, [startDate, endDate]);
+
   const updateCurrentHolidays = () => {
     const holidays = getHolidaysForLocation(
       selectedCountry,
@@ -200,8 +237,17 @@ export default function CalendarWizard({ onBack }: CalendarWizardProps) {
       .filter(Boolean) as Holiday[];
   };
 
+  const selectAllHolidays = () => {
+    const allHolidayNames = currentHolidays.map((holiday) => holiday.name);
+    setSelectedHolidays(allHolidayNames);
+  };
+
+  const clearAllHolidays = () => {
+    setSelectedHolidays([]);
+  };
+
   const addCustomEvent = () => {
-    setCustomEvents((prev) => [...prev, { name: '', date: '', emoji: '🎉' }]);
+    setCustomEvents((prev) => [...prev, { name: '', date: '' }]);
   };
 
   const updateCustomEvent = (
@@ -363,7 +409,7 @@ export default function CalendarWizard({ onBack }: CalendarWizardProps) {
                   key={holidayName}
                   className="inline-flex items-center gap-1 px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm"
                 >
-                  {holiday.emoji} {holiday.name}
+                  {holiday.name}
                   <button
                     onClick={() => removeSelectedHoliday(holidayName)}
                     className="ml-1 hover:bg-purple-200 rounded-full p-0.5"
@@ -451,7 +497,6 @@ export default function CalendarWizard({ onBack }: CalendarWizardProps) {
               onClick={() => toggleHoliday(holiday.name)}
             >
               <div className="flex items-center space-x-3">
-                <span className="text-2xl">{holiday.emoji}</span>
                 <div>
                   <div className="font-medium text-gray-800">
                     {holiday.name}
@@ -462,6 +507,21 @@ export default function CalendarWizard({ onBack }: CalendarWizardProps) {
             </div>
           );
         })}
+      </div>
+      {/* Select All / Clear All buttons */}
+      <div className="flex justify-between mt-4">
+        <button
+          onClick={selectAllHolidays}
+          className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors mr-2"
+        >
+          Select All
+        </button>
+        <button
+          onClick={clearAllHolidays}
+          className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
+        >
+          Clear All
+        </button>
       </div>
     </div>
   );
@@ -484,8 +544,8 @@ export default function CalendarWizard({ onBack }: CalendarWizardProps) {
             className="p-4 border border-gray-300 rounded-lg bg-white"
           >
             {' '}
-            <div className="grid grid-cols-12 gap-3 items-end">
-              <div className="col-span-5">
+            <div className="grid grid-cols-9 gap-3 items-end">
+              <div className="col-span-6">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Event Name
                 </label>
@@ -499,7 +559,7 @@ export default function CalendarWizard({ onBack }: CalendarWizardProps) {
                   className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
               </div>
-              <div className="col-span-3">
+              <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Date (MM-DD)
                 </label>
@@ -511,15 +571,6 @@ export default function CalendarWizard({ onBack }: CalendarWizardProps) {
                   }
                   placeholder="03-15"
                   className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                />
-              </div>
-              <div className="col-span-3">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Emoji
-                </label>
-                <EmojiPicker
-                  value={event.emoji}
-                  onChange={(emoji) => updateCustomEvent(index, 'emoji', emoji)}
                 />
               </div>
               <div className="col-span-1">
@@ -588,7 +639,7 @@ export default function CalendarWizard({ onBack }: CalendarWizardProps) {
                 key={index}
                 className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm"
               >
-                {holiday.emoji} {holiday.name}
+                {holiday.name}
               </span>
             ))}
           </div>
@@ -604,7 +655,7 @@ export default function CalendarWizard({ onBack }: CalendarWizardProps) {
                     key={index}
                     className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm"
                   >
-                    {event.emoji} {event.name}
+                    {event.name}
                   </span>
                 ))}
             </div>

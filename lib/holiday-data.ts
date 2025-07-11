@@ -3,7 +3,6 @@ import Holidays from 'date-holidays';
 export interface Holiday {
   name: string;
   date: string;
-  emoji: string;
   category: string;
   type?: string;
 }
@@ -87,50 +86,6 @@ export const getAvailableRegions = (
   }
 };
 
-// Default emoji mapping for holiday types and names
-const getHolidayEmoji = (name: string, type: string): string => {
-  const lowerName = name.toLowerCase();
-
-  // Specific holiday name mappings
-  if (lowerName.includes('new year')) return '🎊';
-  if (lowerName.includes('christmas')) return '🎄';
-  if (lowerName.includes('easter')) return '🐰';
-  if (lowerName.includes('valentine')) return '💕';
-  if (lowerName.includes('thanksgiving')) return '🦃';
-  if (lowerName.includes('halloween')) return '🎃';
-  if (lowerName.includes('independence') || lowerName.includes('national day'))
-    return '🎆';
-  if (lowerName.includes('labor') || lowerName.includes('labour')) return '👷';
-  if (lowerName.includes('mother')) return '🌸';
-  if (lowerName.includes('father')) return '👨';
-  if (lowerName.includes('memorial') || lowerName.includes('remembrance'))
-    return '🌺';
-  if (lowerName.includes('martin luther king')) return '✊';
-  if (lowerName.includes('president')) return '🇺🇸';
-  if (lowerName.includes('good friday') || lowerName.includes('religious'))
-    return '✝️';
-  if (lowerName.includes('boxing')) return '🎁';
-  if (lowerName.includes('mardi gras')) return '🎭';
-  if (lowerName.includes('st. patrick') || lowerName.includes('saint patrick'))
-    return '☘️';
-
-  // Type-based mappings
-  switch (type) {
-    case 'public':
-      return '🏛️';
-    case 'bank':
-      return '🏦';
-    case 'school':
-      return '🏫';
-    case 'optional':
-      return '📅';
-    case 'observance':
-      return '👀';
-    default:
-      return '📅';
-  }
-};
-
 // Get holidays for a specific location and year
 export const getHolidaysForLocation = (
   countryCode: string,
@@ -157,7 +112,6 @@ export const getHolidaysForLocation = (
     return holidays.map((holiday: any) => ({
       name: holiday.name,
       date: holiday.date.substring(5, 10), // Extract MM-DD from YYYY-MM-DD
-      emoji: getHolidayEmoji(holiday.name, holiday.type),
       category: categoryId,
       type: holiday.type,
     }));
@@ -225,56 +179,47 @@ const getDefaultHolidays = (): HolidayCategory => {
       {
         name: "New Year's Day",
         date: '01-01',
-        emoji: '🎊',
         category: 'us-popular',
       },
       {
         name: "Valentine's Day",
         date: '02-14',
-        emoji: '💕',
         category: 'us-popular',
       },
       {
         name: "St. Patrick's Day",
         date: '03-17',
-        emoji: '☘️',
         category: 'us-popular',
       },
       {
         name: 'Easter Sunday',
         date: '04-21',
-        emoji: '🐰',
         category: 'us-popular',
       },
       {
         name: "Mother's Day",
         date: '05-12',
-        emoji: '🌸',
         category: 'us-popular',
       },
       {
         name: "Father's Day",
         date: '06-16',
-        emoji: '👨',
         category: 'us-popular',
       },
       {
         name: 'Independence Day',
         date: '07-04',
-        emoji: '🎆',
         category: 'us-popular',
       },
-      { name: 'Halloween', date: '10-31', emoji: '🎃', category: 'us-popular' },
+      { name: 'Halloween', date: '10-31', category: 'us-popular' },
       {
         name: 'Thanksgiving',
         date: '11-28',
-        emoji: '🦃',
         category: 'us-popular',
       },
       {
         name: 'Christmas Day',
         date: '12-25',
-        emoji: '🎄',
         category: 'us-popular',
       },
     ],
@@ -306,6 +251,11 @@ export const STORAGE_KEYS = {
   SELECTED_COUNTRY: 'weekly-calendar-selected-country',
   SELECTED_STATE: 'weekly-calendar-selected-state',
   SELECTED_REGION: 'weekly-calendar-selected-region',
+  CALENDAR_HEADER: 'weekly-calendar-header',
+  CALENDAR_YEAR: 'weekly-calendar-year',
+  USE_CUSTOM_RANGE: 'weekly-calendar-use-custom-range',
+  CUSTOM_START_DATE: 'weekly-calendar-start-date',
+  CUSTOM_END_DATE: 'weekly-calendar-end-date',
 };
 
 export interface LocationSelection {
@@ -380,4 +330,69 @@ export const loadLocationSelection = (): LocationSelection => {
     };
   }
   return { country: 'US', state: '', region: '' };
+};
+
+// Calendar settings storage functions
+export const saveCalendarHeader = (header: string) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(STORAGE_KEYS.CALENDAR_HEADER, header);
+  }
+};
+
+export const loadCalendarHeader = (): string => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem(STORAGE_KEYS.CALENDAR_HEADER) || '';
+  }
+  return '';
+};
+
+export const saveCalendarYear = (year: number) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(STORAGE_KEYS.CALENDAR_YEAR, year.toString());
+  }
+};
+
+export const loadCalendarYear = (): number => {
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem(STORAGE_KEYS.CALENDAR_YEAR);
+    return saved ? parseInt(saved, 10) : new Date().getFullYear();
+  }
+  return new Date().getFullYear();
+};
+
+export const saveUseCustomRange = (useCustomRange: boolean) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(
+      STORAGE_KEYS.USE_CUSTOM_RANGE,
+      useCustomRange.toString()
+    );
+  }
+};
+
+export const loadUseCustomRange = (): boolean => {
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem(STORAGE_KEYS.USE_CUSTOM_RANGE);
+    return saved === 'true';
+  }
+  return false;
+};
+
+export const saveCustomDateRange = (startDate: string, endDate: string) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(STORAGE_KEYS.CUSTOM_START_DATE, startDate);
+    localStorage.setItem(STORAGE_KEYS.CUSTOM_END_DATE, endDate);
+  }
+};
+
+export const loadCustomDateRange = (): {
+  startDate: string;
+  endDate: string;
+} => {
+  if (typeof window !== 'undefined') {
+    return {
+      startDate: localStorage.getItem(STORAGE_KEYS.CUSTOM_START_DATE) || '',
+      endDate: localStorage.getItem(STORAGE_KEYS.CUSTOM_END_DATE) || '',
+    };
+  }
+  return { startDate: '', endDate: '' };
 };

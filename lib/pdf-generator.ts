@@ -7,24 +7,17 @@ import {
   addWeeks,
   startOfYear,
 } from 'date-fns';
-import {
-  CHEWY_FONT_BASE64,
-  NOTO_EMOJI_FONT_BASE64,
-  FONT_CONFIG,
-  hasFontsLoaded,
-} from './font-data';
+import { CHEWY_FONT_BASE64, FONT_CONFIG, hasFontsLoaded } from './font-data';
 
 interface Holiday {
   name: string;
   date: string;
-  emoji: string;
   category: string;
 }
 
 interface CustomEvent {
   name: string;
   date: string;
-  emoji: string;
 }
 
 interface CalendarOptions {
@@ -113,28 +106,6 @@ export const generateCalendarPDF = async (
     }
   };
 
-  // Configure emoji font
-  const configureEmojiFont = (pdf: jsPDF) => {
-    try {
-      if (hasFontsLoaded() && NOTO_EMOJI_FONT_BASE64) {
-        // Add and use Noto Emoji font if available
-        pdf.addFileToVFS('NotoEmoji-Regular.ttf', NOTO_EMOJI_FONT_BASE64);
-        pdf.addFont(
-          'NotoEmoji-Regular.ttf',
-          FONT_CONFIG.emoji.name,
-          FONT_CONFIG.emoji.style
-        );
-        pdf.setFont(FONT_CONFIG.emoji.name, FONT_CONFIG.emoji.style);
-      } else {
-        // Use fallback font for emojis
-        pdf.setFont(FONT_CONFIG.emoji.fallback, 'normal');
-      }
-    } catch (error) {
-      console.error('Failed to set emoji font:', error);
-      pdf.setFont('helvetica', 'normal');
-    }
-  };
-
   // Calculate date range
   let calendarStartDate: Date;
   let calendarEndDate: Date;
@@ -217,32 +188,30 @@ export const generateCalendarPDF = async (
 
       // Check for special events
       const dateStr = format(date, 'MM-dd');
-      let specialEvent = ''; // Check holidays
+      let eventName = '';
+
+      // Check holidays
       const holiday = holidays.find((h) => h.date === dateStr);
       if (holiday) {
-        specialEvent = `${holiday.emoji} ${holiday.name}`;
+        eventName = holiday.name + '!';
       }
 
-      // Check custom events
+      // Check custom events (override holiday if both exist)
       const customEvent = customEvents.find((e) => e.date === dateStr);
       if (customEvent) {
-        specialEvent = `${customEvent.emoji} ${customEvent.name}`;
+        eventName = customEvent.name;
       }
-      if (specialEvent) {
-        // Check if the event contains emojis (simplified emoji detection)
-        const hasEmoji = /[\uD83C-\uDBFF\uDC00-\uDFFF]|[\u2600-\u27BF]/.test(
-          specialEvent
-        );
 
-        if (hasEmoji) {
-          configureEmojiFont(pdf);
-        } else {
-          configureFonts(pdf);
-        }
+      if (eventName) {
+        pdf.setFontSize(14);
+        // Position text lower down and to the left, directly on the first line
+        const eventY = startY + 0.8; // Moved lower to sit on the first writing line
+        const textX = x + 0.1; // Left-aligned within the column
 
-        pdf.setFontSize(10);
-        pdf.text(specialEvent, x + columnWidth / 2, startY + 0.3, {
-          align: 'center',
+        // Draw text with normal font, left-aligned
+        configureFonts(pdf);
+        pdf.text(eventName, textX, eventY, {
+          align: 'left',
         });
       }
 
@@ -330,14 +299,13 @@ export const sampleCalendarData: CalendarOptions = {
     {
       name: "New Year's Day",
       date: '01-01',
-      emoji: '🎊',
       category: 'us-federal',
     },
-    { name: '4th of July', date: '07-04', emoji: '🎆', category: 'us-federal' },
-    { name: 'Christmas', date: '12-25', emoji: '🎄', category: 'us-federal' },
+    { name: '4th of July', date: '07-04', category: 'us-federal' },
+    { name: 'Christmas', date: '12-25', category: 'us-federal' },
   ],
   customEvents: [
-    { name: "Elvis' Birthday", date: '01-08', emoji: '🎉' },
-    { name: 'Anniversary', date: '09-20', emoji: '💕' },
+    { name: "Elvis' Birthday", date: '01-08' },
+    { name: 'Anniversary', date: '09-20' },
   ],
 };

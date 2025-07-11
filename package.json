@@ -13,7 +13,6 @@
     "autoprefixer": "^10.4.19",
     "date-fns": "^3.6.0",
     "date-holidays": "^3.24.3",
-    "emoji-picker-react": "^4.12.2",
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.1",
     "lucide-react": "^0.379.0",
